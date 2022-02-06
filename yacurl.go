@@ -16,6 +16,7 @@ func main() {
 		os.Exit(1)
 	}
 	response, connection := listener()
+
 	links := getLinks(response)
 	getResources(links, connection)
 
@@ -24,15 +25,14 @@ func main() {
 func getResources(links []string, connection net.Conn) {
 	done := make(chan bool)
 	for _, l := range links {
-		go downloadResource(l, connection, done)
+		go downloadResource(l, done)
 	}
 	for range links {
 		<-done
 	}
 
 }
-func downloadResource(link string, connection net.Conn, done chan bool) {
-
+func downloadResource(link string, done chan bool) {
 	var name string = ""
 	idx := strings.LastIndex(link, "/")
 	if idx == -1 {
@@ -40,14 +40,19 @@ func downloadResource(link string, connection net.Conn, done chan bool) {
 	} else {
 		name = link[idx+1:]
 	}
-	file, err := os.Create(name)
+	_, err := os.Create(name)
 	checkError(err)
-	defer file.Close()
-
-	conn := net.Dial("tcp", os.Args[1])
-
-	done <- true
-
+	tcpAddr, err := net.ResolveTCPAddr("tcp4", os.Args[1])
+	checkError(err)
+	connection, err := net.DialTCP("tcp", nil, tcpAddr)
+	checkError(err)
+	defer connection.Close()
+	fmt.Println("GET " + link + " HTTP/1.0 \r\n\r\n")
+	_, err = connection.Write([]byte("GET " + link + " HTTP/1.0 \r\n\r\n"))
+	checkError(err)
+	response, err := ioutil.ReadAll(connection)
+	checkError(err)
+	fmt.Println(string(response))
 }
 func getLinks(response string) []string {
 
@@ -70,6 +75,7 @@ func listener() (string, net.Conn) {
 	checkError(err)
 	connection, err := net.DialTCP("tcp", nil, tcpAddr)
 	checkError(err)
+	defer connection.Close()
 	_, err = connection.Write([]byte("GET / HTTP/1.0\r\n\r\n"))
 	checkError(err)
 	response, err := ioutil.ReadAll(connection)
