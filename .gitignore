@@ -1,3 +1,4 @@
 *.png
-yacurl
+./yacurl
 *.exe
+*html
