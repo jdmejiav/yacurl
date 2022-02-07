@@ -9,11 +9,28 @@ import (
 	"strings"
 )
 
+var host string
+var path string
+var port string
+
 func main() {
-	if len(os.Args) != 2 {
-		fmt.Fprintf(os.Stderr, "Usage: %s host:port\n\n", os.Args)
+	if len(os.Args) != 3 {
+		fmt.Fprintf(os.Stderr, "Usage: %s host port\n\n", os.Args)
 		os.Exit(1)
 	}
+
+	idx := strings.Index(os.Args[1], "/")
+	port = os.Args[2]
+	if idx != -1 {
+		host = os.Args[1][:idx]
+		path = os.Args[1][idx:]
+	} else {
+		host = os.Args[1]
+		path = "/"
+	}
+	fmt.Println("port " + port)
+	fmt.Println("host " + host)
+	fmt.Println("path " + path)
 	response, connection := listener()
 	fmt.Println(response)
 	createHtml(response)
@@ -51,7 +68,7 @@ func downloadResource(link string, done chan bool) {
 	file, err := os.Create(name)
 	checkError(err)
 	defer file.Close()
-	tcpAddr, err := net.ResolveTCPAddr("tcp4", os.Args[1])
+	tcpAddr, err := net.ResolveTCPAddr("tcp4", host+":"+port)
 	checkError(err)
 	connection, err := net.DialTCP("tcp", nil, tcpAddr)
 	checkError(err)
@@ -84,13 +101,13 @@ func getLinks(response string) []string {
 	return out
 }
 func listener() (string, net.Conn) {
-	url := os.Args[1]
-	tcpAddr, err := net.ResolveTCPAddr("tcp4", url)
+
+	tcpAddr, err := net.ResolveTCPAddr("tcp4", host+":"+port)
 	checkError(err)
 	connection, err := net.DialTCP("tcp", nil, tcpAddr)
 	checkError(err)
 	defer connection.Close()
-	_, err = connection.Write([]byte("GET / HTTP/1.0\r\n\r\n"))
+	_, err = connection.Write([]byte("GET " + path + " HTTP/1.0\r\n\r\n"))
 	checkError(err)
 	response, err := ioutil.ReadAll(connection)
 	checkError(err)
