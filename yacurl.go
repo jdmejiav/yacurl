@@ -32,19 +32,35 @@ func main() {
 	fmt.Println("host " + host)
 	fmt.Println("path " + path)
 	response, connection := listener()
-	fmt.Println(response)
+	//fmt.Println(response)
 	createHtml(response)
 	links := getLinks(response)
 	getResources(links, connection)
 
 }
 func createHtml(doc string) {
-	idx := strings.Index(doc, "<")
-	if idx != -1 {
-		f, err := os.Create("index.html")
+	exp := regexp.MustCompile("text/html")
+	if string(exp.Find([]byte(doc))) != "" {
+		doc = removeHeader(doc)
+		file, err := os.Create("index.html")
 		checkError(err)
-		defer f.Close()
-		ioutil.WriteFile("index.html", []byte(doc[idx+1:]), 0644)
+		defer file.Close()
+		ioutil.WriteFile("index.html", []byte(doc), 0644)
+	} else {
+		doc = removeHeader(doc)
+		var name string = ""
+		idx := strings.LastIndex(path, ".")
+		if idx == -1 {
+			name = strconv.Itoa(archivos)
+		} else {
+			name = strconv.Itoa(archivos) + path[idx:]
+		}
+		archivos += 1
+		file, err := os.Create(name)
+		checkError(err)
+		defer file.Close()
+		ioutil.WriteFile(name, []byte(doc), 0644)
+		archivos += 1
 	}
 }
 func getResources(links []string, connection net.Conn) {
@@ -57,14 +73,25 @@ func getResources(links []string, connection net.Conn) {
 	}
 
 }
+
+func removeHeader(doc string) string {
+	idx := strings.Index(doc, "\r\n\r")
+	if idx != -1 {
+		return doc[idx+4:]
+	} else {
+		return doc
+	}
+}
+
 func downloadResource(link string, done chan bool) {
 	var name string = ""
-	idx := strings.LastIndex(link, "/")
+	idx := strings.LastIndex(link, ".")
 	if idx == -1 {
-		name = link
+		name = strconv.Itoa(archivos)
 	} else {
-		name = link[idx+1:]
+		name = strconv.Itoa(archivos) + link[idx:]
 	}
+	archivos += 1
 	file, err := os.Create(name)
 	checkError(err)
 	defer file.Close()
@@ -73,31 +100,33 @@ func downloadResource(link string, done chan bool) {
 	connection, err := net.DialTCP("tcp", nil, tcpAddr)
 	checkError(err)
 	defer connection.Close()
-
 	_, err = connection.Write([]byte("GET " + link + " \r\n\r\n"))
 	checkError(err)
 	response, err := ioutil.ReadAll(connection)
 	checkError(err)
-	fmt.Println(string(response))
+	//fmt.Println(string(response))
 	idxDoc := strings.Index(string(response), "\n")
 	if idxDoc != -1 {
 		doc := string(response)[idxDoc+2:]
+		doc = removeHeader(doc)
 		ioutil.WriteFile(name, []byte(doc), 0644)
 	}
 	done <- true
 }
 func getLinks(response string) []string {
 
-	links := regexp.MustCompile("src *=\".*?\"")
+	links := regexp.MustCompile("src=\".*?\"")
 
 	ls := links.FindAllString(response, -1)
+	fmt.Println(len(ls))
 	out := []string{}
 	for _, l := range ls {
 		l = strings.Replace(l, "src=", "", 1)
 		l = strings.Replace(l, "\"", "", 2)
+		l = strings.ReplaceAll(l, "'", "")
+		l = strings.ReplaceAll(l, ":", "")
 		out = append(out, l)
 	}
-
 	return out
 }
 func listener() (string, net.Conn) {
