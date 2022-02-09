@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -13,7 +14,10 @@ var host string
 var path string
 var port string
 
+var archivos int
+
 func main() {
+	archivos = 0
 	if len(os.Args) != 3 {
 		fmt.Fprintf(os.Stderr, "Usage: %s host port\n\n", os.Args)
 		os.Exit(1)
