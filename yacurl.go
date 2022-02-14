@@ -87,12 +87,8 @@ func removeHeader(doc string) string {
 
 func downloadResource(link string, done chan bool) {
 	var name string = ""
-	idx := strings.LastIndex(link, ".")
-	if idx == -1 {
-		name = strconv.Itoa(archivos)
-	} else {
-		name = strconv.Itoa(archivos) + link[idx:]
-	}
+	name = strings.ReplaceAll(link, "/", "-")
+
 	archivos += 1
 	tcpAddr, err := net.ResolveTCPAddr("tcp4", host+":"+port)
 	checkError(err)
