@@ -13,7 +13,6 @@ import (
 var host string
 var path string
 var port string
-
 var archivos int
 
 func main() {
@@ -35,13 +34,12 @@ func main() {
 	fmt.Println("port " + port)
 	fmt.Println("host " + host)
 	fmt.Println("path " + path)
-	response, connection := listener()
-	//fmt.Println(response)
+	response, connection := handleConnection()
 	createHtml(response)
 	links := getLinks(response)
 	getResources(links, connection)
-
 }
+
 func createHtml(doc string) {
 	exp := regexp.MustCompile("text/html")
 	if string(exp.Find([]byte(doc))) != "" {
@@ -96,19 +94,23 @@ func downloadResource(link string, done chan bool) {
 		name = strconv.Itoa(archivos) + link[idx:]
 	}
 	archivos += 1
-	file, err := os.Create(name)
-	checkError(err)
-	defer file.Close()
 	tcpAddr, err := net.ResolveTCPAddr("tcp4", host+":"+port)
 	checkError(err)
 	connection, err := net.DialTCP("tcp", nil, tcpAddr)
 	checkError(err)
 	defer connection.Close()
 	_, err = connection.Write([]byte("GET " + link + " \r\n\r\n"))
-	checkError(err)
+	if err != nil {
+		return
+	}
 	response, err := ioutil.ReadAll(connection)
 	checkError(err)
 	//fmt.Println(string(response))
+
+	file, err := os.Create(name)
+	checkError(err)
+	defer file.Close()
+
 	idxDoc := strings.Index(string(response), "\n")
 	if idxDoc != -1 {
 		doc := string(response)[idxDoc+2:]
@@ -119,21 +121,26 @@ func downloadResource(link string, done chan bool) {
 }
 func getLinks(response string) []string {
 
-	links := regexp.MustCompile("src=\".*?\"")
+	links := regexp.MustCompile("(src=\".*?\")|(src='.*?')")
 
 	ls := links.FindAllString(response, -1)
-	fmt.Println(len(ls))
+
 	out := []string{}
 	for _, l := range ls {
+		l := strings.Trim(l, " ")
 		l = strings.Replace(l, "src=", "", 1)
 		l = strings.Replace(l, "\"", "", 2)
 		l = strings.ReplaceAll(l, "'", "")
 		l = strings.ReplaceAll(l, ":", "")
 		out = append(out, l)
 	}
+	for _, l := range out {
+		fmt.Println(string(l))
+	}
+
 	return out
 }
-func listener() (string, net.Conn) {
+func handleConnection() (string, net.Conn) {
 
 	tcpAddr, err := net.ResolveTCPAddr("tcp4", host+":"+port)
 	checkError(err)
