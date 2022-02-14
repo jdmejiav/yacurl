@@ -79,6 +79,9 @@ func getResources(links []string, connection net.Conn) {
 func removeHeader(doc string) string {
 	idx := strings.Index(doc, "\r\n\r")
 	if idx != -1 {
+		fmt.Println("")
+		fmt.Println(doc[:idx])
+		fmt.Println("")
 		return doc[idx+4:]
 	} else {
 		return doc
@@ -116,7 +119,6 @@ func downloadResource(link string, done chan bool) {
 	done <- true
 }
 func getLinks(response string) []string {
-
 	links := regexp.MustCompile("(src=\".*?\")|(src='.*?')")
 
 	ls := links.FindAllString(response, -1)
